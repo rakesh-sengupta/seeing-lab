@@ -1,0 +1,992 @@
+<!doctype html>
+<html lang="en"><head>
+<title>Seeing Lab</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: a lab bench. Plot on the left, controls and findings on the right; stacks on phones. */
+:root {
+  --bg: #F3F1EC; --panel: #FFFFFF; --ink: #1C2433; --muted: #5B6475; --rule: #D8D4CB;
+  --accent: #1F3A5F; --ok: #23665A; --warn: #A12F24; --stage: #FBFAF7; --grid: #E6E2D9;
+  --na: #B85A0E; --k: #6A3D9A; --trace: #1F3A5F; --ghost: #9AA6B8; --stim: #23665A;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", Arial, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161E; --panel: #1A202B; --ink: #E8EAF0; --muted: #A3ABBA; --rule: #2E3646;
+    --accent: #9DB7DD; --ok: #6FC3AE; --warn: #F08A7E; --stage: #161B24; --grid: #273041;
+    --na: #F2994A; --k: #B79CE8; --trace: #E8EAF0; --ghost: #5D6A80; --stim: #6FC3AE;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161E; --panel: #1A202B; --ink: #E8EAF0; --muted: #A3ABBA; --rule: #2E3646;
+  --accent: #9DB7DD; --ok: #6FC3AE; --warn: #F08A7E; --stage: #161B24; --grid: #273041;
+  --na: #F2994A; --k: #B79CE8; --trace: #E8EAF0; --ghost: #5D6A80; --stim: #6FC3AE;
+  color-scheme: dark;
+}
+html, body { min-height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 17px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+.app { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+.topbar { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; border-bottom: 2px solid var(--rule); padding-block: 4px 8px; }
+.topbar h1 { font-size: 1.05rem; margin: 0; color: var(--accent); letter-spacing: 0.02em; }
+.topbar .note { font-size: 0.85rem; color: var(--muted); }
+#jspsych-target { min-height: 70vh; display: flex; flex-direction: column; }
+
+/* jsPsych essentials (inlined) */
+.jspsych-display-element { display: flex; flex-direction: column; font-family: var(--font-body); font-size: 17px; line-height: 1.5; }
+.jspsych-display-element:focus { outline: none; }
+.jspsych-content-wrapper { display: flex; align-items: flex-start; margin: 0 auto; flex: 1 1 100%; width: 100%; }
+.jspsych-content { max-width: 100%; width: 100%; text-align: left; margin: 0 auto !important; }
+.jspsych-btn, .btn {
+  display: inline-block; font: 700 1rem var(--font-body); cursor: pointer;
+  padding: 12px 24px; border-radius: 10px; border: 2px solid var(--accent);
+  background: var(--accent); color: var(--bg); touch-action: manipulation;
+}
+.btn2 { font: 700 0.95rem var(--font-body); padding: 9px 16px; border-radius: 10px; border: 2px solid var(--accent); background: transparent; color: var(--accent); cursor: pointer; }
+.jspsych-btn:focus-visible, .btn:focus-visible, .btn2:focus-visible, input:focus-visible, button:focus-visible { outline: 3px solid var(--na); outline-offset: 2px; }
+.jspsych-html-button-response-btngroup { display: flex; justify-content: center; margin-top: 16px; }
+
+/* reading column */
+.read { max-width: 42rem; margin: 8px auto; display: flex; flex-direction: column; gap: 12px; }
+.read h2 { font-size: 1.6rem; line-height: 1.2; margin: 0; text-wrap: balance; }
+.read p { margin: 0; }
+.eyebrow { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.calm { background: var(--panel); border-left: 4px solid var(--ok); padding: 10px 14px; border-radius: 6px; }
+.partlist { margin: 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 4px; }
+
+/* lab bench */
+.bench-head { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.bench-head h2 { margin: 0; font-size: 1.45rem; line-height: 1.2; }
+.glance { background: var(--panel); border-left: 4px solid var(--na); padding: 8px 12px; border-radius: 6px; font-weight: 700; color: var(--accent); }
+.bench { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 860px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.card h3 { margin: 0 0 8px; font-size: 0.95rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.plotwrap { position: relative; width: 100%; }
+canvas { display: block; width: 100%; background: var(--stage); border-radius: 8px; }
+.readout { margin-top: 8px; font-size: 1.05rem; font-weight: 700; min-height: 1.6em; }
+.readout .num { font-family: var(--font-num); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.85rem; color: var(--muted); margin-top: 6px; }
+.sw { display: inline-block; width: 18px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.ctrl { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.ctrl label { font-weight: 700; display: flex; justify-content: space-between; gap: 8px; }
+.ctrl .val { font-family: var(--font-num); font-weight: 600; color: var(--accent); }
+input[type=range] { width: 100%; accent-color: var(--accent); min-height: 32px; }
+.toggle { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-weight: 700; }
+.toggle input { width: 22px; height: 22px; accent-color: var(--warn); }
+.toggle small { font-weight: 400; color: var(--muted); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.steps { margin: 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 3px; }
+.field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 10px; }
+.field label { font-size: 0.95rem; }
+.field .inrow { display: flex; gap: 8px; align-items: center; }
+.field input { font: 600 1rem var(--font-num); width: 6.5rem; padding: 6px 8px; border-radius: 8px; border: 2px solid var(--rule); background: var(--stage); color: var(--ink); }
+.fb { font-size: 0.9rem; }
+.fb.ok { color: var(--ok); } .fb.hint { color: var(--warn); }
+.q { margin-bottom: 12px; }
+.q p { margin: 0 0 6px; font-weight: 700; }
+.opts { display: flex; flex-direction: column; gap: 6px; }
+.opt { text-align: left; font: 400 0.95rem var(--font-body); padding: 8px 12px; border-radius: 8px; border: 2px solid var(--rule); background: var(--stage); color: var(--ink); cursor: pointer; }
+.opt.right { border-color: var(--ok); }
+.opt.wrong { border-color: var(--warn); }
+.done { background: var(--panel); border: 1px dashed var(--ok); border-radius: 10px; padding: 8px 12px; font-size: 0.95rem; }
+.navrow { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.tiny { font-size: 0.82rem; color: var(--muted); }
+.copyline { font-family: var(--font-num); font-size: 0.98rem; background: var(--panel); border: 1px dashed var(--accent); border-radius: 8px; padding: 10px 12px; user-select: all; overflow-wrap: anywhere; }
+table.sum { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+table.sum td { border-bottom: 1px solid var(--rule); padding: 6px 4px; vertical-align: top; }
+table.sum td.v { font-family: var(--font-num); text-align: right; white-space: nowrap; }
+.loadmsg { margin: auto; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---- Relay Lab additions ---- */
+.lanes { display: flex; flex-direction: column; gap: 6px; }
+table.lanetbl { border-collapse: collapse; width: 100%; font-size: 0.92rem; margin-top: 8px; }
+table.lanetbl th { text-align: left; font-weight: 700; color: var(--muted); font-size: 0.8rem; border-bottom: 1px solid var(--rule); padding: 4px; }
+table.lanetbl td { border-bottom: 1px solid var(--rule); padding: 5px 4px; }
+table.lanetbl td.v { font-family: var(--font-num); text-align: right; white-space: nowrap; }
+.sw2 { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+.order { display: flex; flex-direction: column; gap: 6px; }
+.order .slot { min-height: 38px; border: 2px dashed var(--rule); border-radius: 8px; padding: 7px 10px; font-size: 0.95rem; display: flex; gap: 8px; align-items: center; }
+.order .slot.filled { border-style: solid; border-color: var(--ok); background: var(--stage); }
+.order .slot b { font-family: var(--font-num); color: var(--muted); min-width: 1.3em; }
+.pool { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pool .opt { flex: 1 1 14rem; }
+.pool .opt.shake { border-color: var(--warn); }
+.inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+.inputs label { display: flex; align-items: center; gap: 8px; font-weight: 700; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 8px; background: var(--stage); }
+.inputs input { width: 22px; height: 22px; }
+.tagE { color: var(--ok); } .tagI { color: var(--warn); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg label { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--stage); font-size: 0.95rem; }
+.seg input { width: 18px; height: 18px; accent-color: var(--accent); }
+.sub { margin: 10px 0 4px; font-weight: 700; font-size: 0.95rem; }
+.gate { max-width: 34rem; }
+.pwrow { display: flex; flex-direction: column; gap: 6px; }
+.pwrow label { font-weight: 700; }
+.pwrow .inrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pwrow input { font: 600 1.15rem var(--font-num); width: 12rem; max-width: 100%; padding: 8px 10px; border-radius: 8px; border: 2px solid var(--rule); background: var(--stage); color: var(--ink); }
+/* ---- Seeing Lab additions ---- */
+.stagewrap { background: #F4F4F2; border-radius: 10px; border: 1px solid var(--rule); overflow: hidden; touch-action: manipulation; }
+.stagewrap canvas { display: block; width: 100%; }
+.cardbox { margin: 8px 0; border: 2px dashed var(--accent); border-radius: 10px; background: var(--stage); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--accent); }
+.bigbtn { font: 700 1.2rem var(--font-body); min-height: 64px; width: 100%; border-radius: 12px; border: 3px solid var(--accent); background: var(--panel); color: var(--accent); cursor: pointer; touch-action: manipulation; }
+.bigbtn:active { background: var(--accent); color: var(--panel); }
+.bench.wide { grid-template-columns: 1fr; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 8px; }
+.swatch { min-height: 48px; border-radius: 10px; border: 2px solid var(--rule); font: 700 0.95rem var(--font-body); cursor: pointer; color: #1C2433; }
+.swatch.none { background: var(--panel); color: var(--ink); }
+.pill { display: inline-block; font: 600 0.85rem var(--font-num); padding: 2px 8px; border-radius: 999px; border: 1px solid var(--rule); background: var(--stage); }
+table.rt { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+table.rt th { text-align: left; font-weight: 700; color: var(--muted); font-size: 0.8rem; border-bottom: 1px solid var(--rule); padding: 4px; }
+table.rt td { border-bottom: 1px solid var(--rule); padding: 6px 4px; }
+table.rt td.v { font-family: var(--font-num); text-align: right; white-space: nowrap; }
+.gate { max-width: 34rem; }
+.pwrow { display: flex; flex-direction: column; gap: 6px; }
+.pwrow label { font-weight: 700; }
+.pwrow .inrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pwrow input { font: 600 1.15rem var(--font-num); width: 12rem; max-width: 100%; padding: 8px 10px; border-radius: 8px; border: 2px solid var(--rule); background: var(--stage); color: var(--ink); }
+</style></head><body>
+<div class="app">
+  <header class="topbar">
+    <h1>Seeing Lab</h1>
+    <span class="note">Introduction to Neuroscience · Sessions 13–14 · from light to perception · nothing is saved or sent</span>
+  </header>
+  <div id="jspsych-target"><p class="loadmsg">Loading the lab…</p></div>
+</div>
+
+<script src="lib/jspsych-7.3.4.min.js"></script>
+<script src="lib/plugin-html-button-response-1.2.0.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  var target = document.getElementById("jspsych-target");
+  if (typeof initJsPsych !== "function" || typeof jsPsychHtmlButtonResponse === "undefined") {
+    target.innerHTML = '<div class="read"><h2>The lab could not load</h2><p>Check your internet connection and reload this page.</p></div>';
+    return;
+  }
+  var PT = jsPsychModule.ParameterType;
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var FAST = /[?&]fast=1/.test(location.search);   // for automated testing only: shortens waits
+
+  /* ---------------- helpers ---------------- */
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function setupCanvas(cv, h) {
+    var w = cv.parentElement.clientWidth, dpr = window.devicePixelRatio || 1;
+    cv.style.height = h + "px"; cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx: ctx, w: w, h: h };
+  }
+  function r1(v) { return Math.round(v * 10) / 10; }
+  function grey(v) { v = Math.round(Math.max(0, Math.min(255, v))); return "rgb(" + v + "," + v + "," + v + ")"; }
+  function erf(x) {   // Abramowitz and Stegun 7.1.26
+    var s = x < 0 ? -1 : 1; x = Math.abs(x); var t = 1 / (1 + 0.3275911 * x);
+    return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x));
+  }
+  function Phi(z) { return 0.5 * (1 + erf(z / Math.SQRT2)); }
+  /* plot frame with an x range that can start below zero */
+  function axes(ctx, L, T, W, H, xMin, xMax, yMax, xTicks, yTicks, xLabel, yLabel, xFmt) {
+    var X = function (v) { return L + (v - xMin) / (xMax - xMin) * W; }, Y = function (v) { return T + (1 - v / yMax) * H; };
+    ctx.font = "12px " + css("--font-num"); ctx.fillStyle = css("--muted"); ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1;
+    yTicks.forEach(function (v) { ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(L + W, Y(v)); ctx.stroke(); ctx.textAlign = "right"; ctx.textBaseline = "middle"; ctx.fillText(String(v), L - 6, Y(v)); });
+    xTicks.forEach(function (v) { ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillText(xFmt ? xFmt(v) : String(v), X(v), T + H + 4); });
+    ctx.textAlign = "right"; ctx.textBaseline = "top"; ctx.fillText(xLabel, L + W, T + H + 20);
+    ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText(yLabel, 4, T - 12);
+    return { X: X, Y: Y };
+  }
+
+  /* =======================================================================
+     PART 2 model · a retinal ganglion cell with a centre–surround receptive field
+     (difference of Gaussians, as in Rodieck 1965 and Enroth-Cugell & Robson 1966).
+       centre sigma 0.5°, surround sigma 1.5°, surround weight 0.85 of the centre.
+       So the centre/surround border is about 1.15° from the middle and the best
+       spot is about 2.4° across. Diffuse light drives the cell only weakly (15%).
+     Firing: resting 15 spikes/s; 70 spikes/s per unit of drive while the light
+     is on (never below 0); for 0.25 s after the light goes off, a rebound of
+     half the size in the opposite direction (Kuffler's "off" discharge).
+     Spikes are random (Poisson), so repeats differ: the lab averages 5 flashes.
+     Cell A is ON-centre; Cell B is OFF-centre (same map, opposite sign).
+     ======================================================================= */
+  var RF = { sc: 0.5, ss: 1.5, ks: 0.85, base: 15, gain: 70, border: 1.15 };
+  function diskW(sig, r) { return 1 - Math.exp(-r * r / (2 * sig * sig)); }   // share of a centred Gaussian inside radius r
+  function drive(st) {
+    var c = RF.sc, s = RF.ss, k = RF.ks;
+    if (st.exp === "size") {
+      if (st.whole) return st.pol * (1 - k);
+      var r = st.size / 2; return st.pol * (diskW(c, r) - k * diskW(s, r));
+    }
+    if (st.exp === "ring") {
+      var ri = st.hole / 2, ro = 5;
+      return st.pol * ((diskW(c, ro) - diskW(c, ri)) - k * (diskW(s, ro) - diskW(s, ri)));
+    }
+    var e = st.edge;   // edge: dark to the left of e, light to the right
+    return (1 - 2 * Phi(e / c)) - k * (1 - 2 * Phi(e / s));
+  }
+  var TR = { pre: 0.3, on: 1.0, post: 0.5, reb: 0.25 };
+  function rateAt(t, d) {
+    if (t < TR.pre) return RF.base;
+    if (t < TR.pre + TR.on) return Math.max(0, RF.base + RF.gain * d);
+    if (t < TR.pre + TR.on + TR.reb) return Math.max(0, RF.base - 0.5 * RF.gain * d);
+    return RF.base;
+  }
+  function spikeTrain(d) {
+    var out = [], dt = 0.001, T = TR.pre + TR.on + TR.post;
+    for (var t = 0; t < T; t += dt) if (Math.random() < rateAt(t, d) * dt) out.push(t);
+    return out;
+  }
+
+  /* lab state (in memory only) */
+  var LAB = { fields: {}, answers: {}, pxcm: null, dist: null, bs: null, p2: { size: {}, ring: {}, edge: {} }, match: null, after: {} };
+  function resetLab() { LAB = { fields: {}, answers: {}, pxcm: LAB.pxcm, dist: LAB.dist, bs: null, p2: { size: {}, ring: {}, edge: {} }, match: null, after: {} }; }
+
+  var PARTS = {
+    1: {
+      eyebrow: "Part 1 of 4 · slides: “The hole in your eye”",
+      title: "Find your blind spot",
+      glance: "Where the optic nerve leaves the eye there are no photoreceptors. You have a hole in your vision, and your brain hides it.",
+      steps: ["<b>Size your screen</b> with a bank card or a ruler (Step A), and set how far your eyes are from the screen (Step B).",
+              "<b>Cover your left eye.</b> Look only at the cross with your right eye. A dot drifts sideways: press <b>Changed!</b> (or Space) when it vanishes, and again when it comes back.",
+              "Do both sweeps (out, then back in), then try the filling-in test."],
+      fields: [
+        { id: "c", label: "Centre of your blind spot (degrees from where you look)", unit: "°", check: function (v) { return checkMine(v, LAB.bs && bsCalc().centre, "about 12–15° from where you look"); } },
+        { id: "w", label: "Width of your blind spot", unit: "°", check: function (v) { return checkMine(v, LAB.bs && bsCalc().width, "about 5.5° wide"); } }
+      ],
+      questions: [
+        { id: "why", q: "Why is there a blind spot at all?", options: ["The ganglion-cell axons leave the eye there as the optic nerve, so there is no room for photoreceptors", "That is where the rods are packed most tightly", "The lens cannot focus light there"], correct: 0,
+          explain: "The spot is called the optic disc. In vertebrate eyes the wiring sits in front of the photoreceptors, so it has to exit through the retina somewhere (Purves, Ch. 11)." },
+        { id: "fill", q: "In the filling-in test, what did you see where the grey disc was?", options: ["Stripes: the pattern seemed to continue", "A dark hole", "The grey disc stayed", "I could not tell"], any: true,
+          explain: "Most people see the stripes continue. The brain does not show you a hole; it fills it in from the surroundings (Ramachandran, 1992). Seeing something different is fine: filling-in varies." },
+        { id: "daily", q: "Why don’t you notice the hole in everyday life?", options: ["The brain fills it in, and with both eyes open each eye covers the other’s blind spot", "Photoreceptors there are just slower", "The blind spot moves around too fast to notice"], correct: 0,
+          explain: "Each blind spot sits on the outer (temporal) side of that eye’s view, so the two holes fall on different parts of the world. When Edme Mariotte described the blind spot in the 1660s, many expected the nerve’s exit to be the eye’s most sensitive point. It is blind." }
+      ],
+      done: "Both sweeps done (or example data used), two numbers checked, booklet page 4 filled in."
+    },
+    2: {
+      eyebrow: "Part 2 of 4 · slides: “Kuffler’s cat”",
+      title: "Record from a retinal ganglion cell",
+      glance: "A ganglion cell answers to a small patch of the world. Light in the centre and light in the surround push it in opposite directions.",
+      steps: ["You are recording one cell, as Stephen Kuffler did in the early 1950s. Each <b>Record</b> flashes the light 5 times. The raster shows each spike as a tick.",
+              "<b>Spot size:</b> record Cell A with light spots from small to big, then the whole screen. Find the best size.",
+              "<b>Ring:</b> light only the surround. <b>Edge:</b> slide a light/dark edge across the cell. Then work out what Cell B is."],
+      fields: [
+        { id: "best", label: "Best light-spot diameter for Cell A", unit: "°", target: 2.4, tol: 0.9, hintLow: "Bigger spots still fire it harder. Try a few sizes above that.", hintHigh: "Smaller spots fire it harder. Try a few sizes below that." },
+        { id: "bestr", label: "Cell A’s firing to that best spot", unit: "spikes/s", target: 65, tol: 10 },
+        { id: "whole", label: "Cell A’s firing when the whole screen lights up", unit: "spikes/s", target: 25.5, tol: 7 }
+      ],
+      questions: [
+        { id: "diffuse", q: "Compare the whole screen with the best spot. What does Cell A mostly signal?", options: ["How much light there is overall", "Contrast: light here versus less light around it", "Colour"], correct: 1,
+          explain: "Light on the surround cancels most of the centre. Kuffler’s ganglion cells were “poor at signalling diffuse illumination” and good at signalling contrast (Purves, Ch. 11)." },
+        { id: "ring", q: "A ring of light on the surround only (hole about 2.5° across). Cell A…", options: ["fires hard while the ring is on", "goes quiet while the ring is on, then fires a burst when it goes off", "does not change at all"], correct: 1,
+          explain: "Surround light inhibits an ON-centre cell. The burst at light-off is the “off” discharge Kuffler saw." },
+        { id: "edge", q: "As the edge moves across Cell A, when does it fire most?", options: ["When its centre sits just inside the bright side of the edge", "When it is deep in the bright area", "When it is deep in the dark area"], correct: 0,
+          explain: "Just inside the light, the centre is lit but part of the surround is dark, so less inhibition. Just inside the dark it is the reverse. That overshoot and undershoot is what you will see in Part 3." },
+        { id: "cellb", q: "So what is Cell B?", options: ["Another ON-centre cell", "An OFF-centre cell: dark in the centre excites it", "A rod"], correct: 1,
+          explain: "The retina has both ON-centre and OFF-centre cells side by side, so it signals both “lighter here” and “darker here”." }
+      ],
+      done: "Three graphs tried, three numbers checked, Cell B identified (booklet page 5)."
+    },
+    3: {
+      eyebrow: "Part 3 of 4 · slides: “Same grey?”",
+      title: "Your own lateral inhibition",
+      glance: "What you see is light compared with its neighbours, not the light itself.",
+      steps: ["Answer the prediction question at the bottom first.",
+              "Adjust the <b>right</b> square until it looks the same grey as the <b>left</b> one. There are 4 trials; the first is a check. No rush, and there is no right answer.",
+              "Then look at the staircase, and compare it with what a row of Cell A’s would signal."],
+      fields: [],
+      questions: [
+        { id: "pred", q: "Prediction first. With lateral inhibition, a mid-grey square on a <b>dark</b> surround should look…", options: ["lighter than it is", "darker than it is", "exactly as it is"], correct: 0,
+          explain: "A dark surround inhibits less, so the patch signals “lighter than around me”. To match it on a light surround you need a lighter grey." },
+        { id: "mach", q: "Each band of the staircase is perfectly flat on the screen. Where does each band look lighter?", options: ["Near its border with a darker band", "Near its border with a lighter band", "Nowhere: the bands look flat"], correct: 0,
+          explain: "These are Mach bands, after Ernst Mach (1865). The model row of ganglion cells overshoots at each edge in the same way." },
+        { id: "who", q: "Which retinal cells could produce both effects?", options: ["Rods, working alone", "Ganglion cells with centre–surround fields, shaped by horizontal and amacrine cells", "The lens"], correct: 1,
+          explain: "Horizontal cells spread sideways and help build the surround: that is lateral inhibition (Purves, Ch. 11)." }
+      ],
+      done: "Four matches made, two questions on the staircase answered (booklet page 6)."
+    },
+    4: {
+      eyebrow: "Part 4 of 4 · slides: “Tire out your cones”",
+      title: "Afterimages and opposite colours",
+      glance: "Stare at a colour and the cells that signal it adapt. Then a grey wall looks like the opposite colour.",
+      steps: ["Press <b>Start</b>. Look at the black dot for 20 seconds. Nothing flashes.",
+              "When the disc turns grey, keep looking at the dot and choose the colour you see. The afterimage fades in a few seconds.",
+              "Do all three colours. Blink and look away between them."],
+      fields: [],
+      questions: [
+        { id: "why", q: "Why does the afterimage appear?", options: ["The cones you stared with adapted (became less sensitive), so grey now tips the balance towards the opposite colour", "Light was trapped inside the eye", "The colour was printed onto the retina for good"], correct: 0,
+          explain: "Adapted cones respond less to the grey, so the other cones win for a while. It fades as they recover." },
+        { id: "opp", q: "The afterimages come in opposite pairs (red with blue-green, yellow with blue). This fits…", options: ["opponent channels: cells excited by one colour and inhibited by its opposite", "each cone type working alone", "the lens splitting light like a prism"], correct: 0,
+          explain: "Ewald Hering proposed opponent colours in the 1870s. Cells beyond the cones combine their signals in opposing pairs." },
+        { id: "principle", q: "Which general principle of sensory systems is this?", options: ["Adaptation: senses respond to change and turn down steady input", "Labelled lines: each nerve has one meaning", "Maps: neighbours in the world are neighbours in the brain"], correct: 0,
+          explain: "Same principle as not feeling your clothes after a minute, or not smelling your own room." }
+      ],
+      done: "Three colours stared at, three afterimages reported (booklet page 7)."
+    },
+    free: { eyebrow: "Free lab", title: "Try anything", glance: "Go back to any part. Make a prediction first, then test it.", steps: [], fields: [], questions: [], done: "" }
+  };
+
+  function checkMine(v, mine, book) {
+    if (mine == null) return { ok: false, msg: "Do the sweeps first (or press “Use example data”)." };
+    if (Math.abs(v - mine) <= 0.35) return { ok: true, msg: "✓ That matches your measurement. Textbook value: " + book + "." };
+    return { ok: false, msg: "That is not what your sweeps gave. Read the numbers in the results box." };
+  }
+
+  /* ---------------- shared findings UI ---------------- */
+  function findingsHTML(P) {
+    if (!P.fields.length && !P.questions.length) return "";
+    var h = '<div class="card"><h3>Your findings</h3>';
+    P.fields.forEach(function (f) {
+      h += '<div class="field"><label for="f_' + f.id + '">' + f.label + '</label><div class="inrow"><input id="f_' + f.id + '" inputmode="decimal" autocomplete="off"> <span>' + f.unit + '</span><button class="btn2" data-check="' + f.id + '">Check</button></div><div class="fb" id="fb_' + f.id + '" aria-live="polite"></div></div>';
+    });
+    P.questions.forEach(function (q) {
+      h += '<div class="q" data-q="' + q.id + '"><p>' + q.q + '</p><div class="opts">' + q.options.map(function (o, i) { return '<button class="opt" data-i="' + i + '">' + o + '</button>'; }).join("") + '</div><div class="fb" aria-live="polite"></div></div>';
+    });
+    return h + '</div>';
+  }
+  function wireFindings(el, P, part) {
+    el.querySelectorAll("[data-check]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var f = P.fields.filter(function (x) { return x.id === b.getAttribute("data-check"); })[0];
+        var raw = el.querySelector("#f_" + f.id).value.replace(",", ".").replace("−", "-").replace(/[^0-9.\-+]/g, "");
+        var v = parseFloat(raw), fb = el.querySelector("#fb_" + f.id);
+        if (isNaN(v)) { fb.className = "fb hint"; fb.textContent = "Type a number first."; return; }
+        if (f.check) { var res = f.check(v); fb.className = "fb " + (res.ok ? "ok" : "hint"); fb.textContent = res.msg; if (res.ok) LAB.fields[part + "." + f.id] = v; return; }
+        LAB.fields[part + "." + f.id] = v;
+        if (Math.abs(v - f.target) <= f.tol + 1e-9) { fb.className = "fb ok"; fb.textContent = "✓ That fits the model cell (spikes are random, so anything close counts)."; }
+        else { fb.className = "fb hint"; fb.textContent = v < f.target ? (f.hintLow || "A little low. Record again and check.") : (f.hintHigh || "A little high. Record again and check."); }
+      });
+    });
+    el.querySelectorAll("[data-q]").forEach(function (box) {
+      var q = P.questions.filter(function (x) { return x.id === box.getAttribute("data-q"); })[0];
+      box.querySelectorAll(".opt").forEach(function (b) {
+        b.addEventListener("click", function () {
+          var i = +b.getAttribute("data-i"), fb = box.querySelector(".fb");
+          box.querySelectorAll(".opt").forEach(function (x) { x.classList.remove("right", "wrong"); });
+          if (q.any) { b.classList.add("right"); fb.className = "fb ok"; fb.innerHTML = "Thanks. " + q.explain; LAB.answers[part + "." + q.id] = q.options[i]; }
+          else if (i === q.correct) { b.classList.add("right"); fb.className = "fb ok"; fb.innerHTML = "✓ Yes. " + q.explain; LAB.answers[part + "." + q.id] = q.options[i]; }
+          else { b.classList.add("wrong"); fb.className = "fb hint"; fb.textContent = "Not quite. Try the lab again, then choose another answer."; }
+        });
+      });
+    });
+  }
+  function headHTML(P) {
+    return '<div class="bench-head"><span class="eyebrow">' + P.eyebrow + '</span><h2>' + P.title + '</h2><div class="glance">' + P.glance + '</div></div>';
+  }
+  function stepsHTML(P) { return P.steps.length ? '<div class="card"><h3>Steps</h3><ol class="steps">' + P.steps.map(function (s) { return "<li>" + s + "</li>"; }).join("") + '</ol></div>' : ""; }
+  function navHTML(part) {
+    var label = part === "4" ? "See my results →" : "Next part →";
+    return '<div class="navrow"><span class="tiny">Nothing you do here is saved or sent.</span><button class="btn" id="next">' + label + '</button></div>';
+  }
+  function doneHTML(P) { return P.done ? '<div class="done"><b>Done when:</b> ' + P.done + '</div>' : ""; }
+
+  /* blind-spot maths: average the two sweeps so reaction time cancels out */
+  function bsCalc() {
+    var b = LAB.bs; if (!b) return null;
+    if (b.example) return { inner: b.inner, outer: b.outer, centre: r1((b.inner + b.outer) / 2), width: r1(b.outer - b.inner), example: true };
+    var ins = [], outs = [];
+    if (b.out && b.out.length === 2) { ins.push(b.out[0]); outs.push(b.out[1]); }
+    if (b.inw && b.inw.length === 2) { outs.push(b.inw[0]); ins.push(b.inw[1]); }
+    if (!ins.length) return null;
+    var mean = function (a) { return a.reduce(function (s, x) { return s + x; }, 0) / a.length; };
+    var inner = r1(mean(ins)), outer = r1(mean(outs));
+    return { inner: inner, outer: outer, centre: r1((inner + outer) / 2), width: r1(outer - inner), both: ins.length === 2 };
+  }
+
+  /* ---------------- the lab plugin ---------------- */
+  function SeeingLab(jsPsych) { this.jsPsych = jsPsych; }
+  SeeingLab.info = { name: "seeing-lab", parameters: { part: { type: PT.STRING, default: "1" } } };
+  SeeingLab.prototype.trial = function (el, trial) {
+    var self = this, part = trial.part, P = PARTS[part];
+    try { window.scrollTo(0, 0); } catch (e) {}
+    var cleanup = [];
+    function finish(extra) { cleanup.forEach(function (f) { f(); }); self.jsPsych.finishTrial(extra || { part: part }); }
+    function onResize(fn) { var h = function () { fn(); }; window.addEventListener("resize", h); cleanup.push(function () { window.removeEventListener("resize", h); }); }
+
+    if (part === "1") buildBlind();
+    else if (part === "2") buildCell();
+    else if (part === "3") buildContrast();
+    else if (part === "4") buildAfter();
+    else buildFree();
+
+    /* ---------- Part 1: blind spot ---------- */
+    function buildBlind() {
+      var CARD_CM = 8.56;   // ID-1 card width (ISO/IEC 7810): 85.60 mm
+      var cw0 = LAB.pxcm ? Math.round(LAB.pxcm * CARD_CM) : 324;   // 324 px = 8.56 cm at the nominal 96 px per inch
+      el.innerHTML = headHTML(P) + '<div class="bench wide">' + stepsHTML(P) +
+        '<div class="card"><h3>Step A · Size your screen</h3>' +
+        '<p>Hold any bank card or ID card flat against the screen. Use the slider until the box is exactly as wide as the card. No card? Use a ruler: make the box 8.56 cm wide.</p>' +
+        '<div class="cardbox" id="cbox">card</div>' +
+        '<div class="ctrl"><label for="cw">Box width <span class="val" id="cwv"></span></label><input type="range" id="cw" min="120" max="900" step="1" value="' + cw0 + '"></div>' +
+        '<div class="row"><button class="btn2" id="cminus" aria-label="Narrower">−</button><button class="btn2" id="cplus" aria-label="Wider">+</button><span class="tiny" id="pxinfo"></span></div></div>' +
+        '<div class="card"><h3>Step B · How far away are you?</h3>' +
+        '<div class="field"><label for="dist">Distance from your eyes to the screen</label><div class="inrow"><input id="dist" inputmode="decimal" value="' + (LAB.dist || 50) + '"> <span>cm</span></div></div>' +
+        '<div class="row"><button class="btn2" data-d="50">Laptop: about 50 cm</button><button class="btn2" data-d="30">Phone: about 30 cm</button></div>' +
+        '<p class="tiny">Your forearm from elbow to fingertip is about 45 cm, an old unit called the cubit. Keep your head still once you start. On a phone, turn it sideways.</p></div>' +
+        '<div class="card"><h3>Step C · Map the hole</h3>' +
+        '<p><b>Cover your left eye.</b> Look only at the cross. Do not follow the dot.</p>' +
+        '<div class="stagewrap"><canvas id="stage" aria-label="A black cross on the left and a black dot that drifts right"></canvas></div>' +
+        '<div class="readout" id="sw" aria-live="polite"></div>' +
+        '<div class="row" style="margin:8px 0"><button class="btn" id="out">Sweep 1: dot moves out</button><button class="btn" id="inw">Sweep 2: dot moves back in</button></div>' +
+        '<button class="bigbtn" id="hit" disabled>Changed! (or press Space)</button>' +
+        '<div class="row" style="margin-top:8px"><button class="btn2" id="fill">Filling-in test</button><button class="btn2" id="example">Use example data</button></div>' +
+        '<p class="tiny">If covering one eye is hard, or you see with one eye, use the example data. Nothing is judged.</p></div>' +
+        '<div class="card"><h3>Results</h3><div id="bsres"><p class="tiny">Your numbers appear here after a sweep.</p></div></div>' +
+        findingsHTML(P) + doneHTML(P) + '</div>' + navHTML(part);
+
+      var cw = el.querySelector("#cw"), cbox = el.querySelector("#cbox"), distIn = el.querySelector("#dist");
+      var cv = el.querySelector("#stage"), G, sweep = null, mode = "map", raf = null;
+      var cwVal = cw0;   // the width the student chose; kept separately so a resize cannot clamp it
+      function pxcm() { return cwVal / CARD_CM; }
+      function dist() { var d = parseFloat(String(distIn.value).replace(",", ".")); return d > 5 && d < 300 ? d : 50; }
+      function pxAt(deg) { return dist() * Math.tan(deg * Math.PI / 180) * pxcm(); }
+      function degAt(px) { return Math.atan(px / pxcm() / dist()) * 180 / Math.PI; }
+      function fx() { return Math.max(24, 1.2 * pxcm()); }
+      function maxDeg() { return degAt(G.w - fx() - 14); }
+      function drawCard() {
+        var maxw = cbox.parentElement.clientWidth - 30;
+        if (maxw > 250) { cw.max = String(Math.floor(maxw)); if (cwVal > maxw) cwVal = Math.floor(maxw); }
+        cw.value = cwVal;
+        var w = cwVal; cbox.style.width = w + "px"; cbox.style.height = Math.round(w * 53.98 / 85.6) + "px";
+        el.querySelector("#cwv").textContent = w + " px";
+        el.querySelector("#pxinfo").textContent = "= " + r1(pxcm()) + " px per cm";
+        LAB.pxcm = pxcm();
+      }
+      function draw(dotDeg) {
+        G = setupCanvas(cv, 240); var c = G.ctx, W = G.w, H = G.h, y0 = H * 0.42;
+        c.fillStyle = "#F4F4F2"; c.fillRect(0, 0, W, H);
+        var x0 = fx();
+        c.strokeStyle = "#111"; c.lineWidth = 3; c.beginPath(); c.moveTo(x0 - 10, y0); c.lineTo(x0 + 10, y0); c.moveTo(x0, y0 - 10); c.lineTo(x0, y0 + 10); c.stroke();
+        var ydot = y0 + pxAt(1.5);   // the blind spot sits about 1.5° below the horizontal
+        if (mode === "fill") {
+          var b = bsCalc(), cx = x0 + pxAt(b.centre), half = pxAt(b.centre + 5) - pxAt(b.centre), rr = (pxAt(b.centre + Math.min(3, b.width * 0.6) / 2) - pxAt(b.centre - Math.min(3, b.width * 0.6) / 2)) / 2;
+          var top = ydot - half * 0.7, hgt = half * 1.4, step = Math.max(6, half / 6);
+          c.fillStyle = "#111";
+          for (var x = cx - half; x < cx + half; x += step * 2) c.fillRect(x, top, step, hgt);
+          c.fillStyle = "#9A9A9A"; c.beginPath(); c.arc(cx, ydot, rr, 0, 2 * Math.PI); c.fill();
+          c.fillStyle = "#333"; c.font = "13px " + css("--font-body"); c.textAlign = "left"; c.fillText("Look at the cross. Is the grey disc still there?", 8, H - 10);
+          return;
+        }
+        if (dotDeg != null) {
+          var r = Math.max(5, (pxAt(dotDeg + 0.3) - pxAt(dotDeg - 0.3)) / 2);
+          c.fillStyle = "#111"; c.beginPath(); c.arc(x0 + pxAt(dotDeg), ydot, r, 0, 2 * Math.PI); c.fill();
+        }
+        var md = maxDeg();
+        c.fillStyle = "#555"; c.font = "12px " + css("--font-num"); c.textAlign = "right";
+        c.fillText("this screen reaches " + Math.floor(md) + "° at " + Math.round(dist()) + " cm", W - 8, H - 10);
+        if (md < 20) { c.fillStyle = "#A12F24"; c.textAlign = "left"; c.fillText("Too narrow: sit closer or turn the phone sideways", 8, 18); }
+      }
+      function setMsg(t) { el.querySelector("#sw").innerHTML = t; }
+      function showRes() {
+        var b = bsCalc(), box = el.querySelector("#bsres");
+        if (!b) { box.innerHTML = '<p class="tiny">Your numbers appear here after a sweep.</p>'; return; }
+        var raw = LAB.bs.example ? "" : '<tr><td>Sweep 1 (out): vanished · came back</td><td class="v">' + (LAB.bs.out && LAB.bs.out.length === 2 ? LAB.bs.out[0] + "° · " + LAB.bs.out[1] + "°" : "–") + '</td></tr>' +
+          '<tr><td>Sweep 2 (in): vanished · came back</td><td class="v">' + (LAB.bs.inw && LAB.bs.inw.length === 2 ? LAB.bs.inw[0] + "° · " + LAB.bs.inw[1] + "°" : "–") + '</td></tr>';
+        var odd = !b.example && (b.centre < 8 || b.centre > 20 || b.width < 2 || b.width > 10);
+        box.innerHTML = '<table class="rt">' + raw +
+          '<tr><td><b>Your blind spot</b>' + (b.example ? " (example data)" : (b.both ? " (average of both sweeps)" : " (one sweep only: do the other)")) + '</td><td class="v">' + b.inner + "° to " + b.outer + '°</td></tr>' +
+          '<tr><td>Centre</td><td class="v">' + b.centre + '°</td></tr><tr><td>Width</td><td class="v">' + b.width + '°</td></tr></table>' +
+          (odd ? '<p class="fb hint">That is unusual: the centre is usually 12–15° out and about 5–6° wide. Check the distance and the card size, keep the left eye covered, and try again.</p>' : "");
+      }
+      function stopSweep(msg) {
+        if (raf) cancelAnimationFrame(raf); raf = null; sweep = null;
+        el.querySelector("#hit").disabled = true; el.querySelector("#out").disabled = false; el.querySelector("#inw").disabled = false;
+        draw(null); if (msg) setMsg(msg); showRes();
+      }
+      function startSweep(dir) {
+        if (!LAB.bs || LAB.bs.example) LAB.bs = {};
+        mode = "map"; draw(null);
+        var lo = 3, hi = Math.min(22, Math.floor(maxDeg())), speed = FAST ? 20 : 2;   // degrees per second
+        if (hi < 12) { setMsg("The screen is too narrow at this distance. Sit closer, or turn your phone sideways."); return; }
+        sweep = { dir: dir, presses: [], from: dir === "out" ? lo : hi, to: dir === "out" ? hi : lo, t0: performance.now(), speed: speed, deg: dir === "out" ? lo : hi };
+        el.querySelector("#hit").disabled = false; el.querySelector("#out").disabled = true; el.querySelector("#inw").disabled = true;
+        setMsg("Watching… press <b>Changed!</b> when the dot vanishes, and again when it comes back.");
+        (function step(now) {
+          if (!sweep) return;
+          var travelled = (now - sweep.t0) / 1000 * sweep.speed;
+          sweep.deg = sweep.dir === "out" ? sweep.from + travelled : sweep.from - travelled;
+          if ((sweep.dir === "out" && sweep.deg >= sweep.to) || (sweep.dir === "in" && sweep.deg <= sweep.to)) {
+            stopSweep(sweep.presses.length < 2 ? "The sweep ended before two presses. Keep your eye on the cross and try again." : null); return;
+          }
+          draw(sweep.deg); raf = requestAnimationFrame(step);
+        })(performance.now());
+      }
+      function hit() {
+        if (!sweep) return;
+        sweep.presses.push(r1(sweep.deg));
+        if (sweep.presses.length === 1) setMsg("Vanished at <span class='num'>" + r1(sweep.deg) + "°</span>. Now press again when it comes back.");
+        else {
+          if (sweep.dir === "out") LAB.bs.out = sweep.presses.slice(); else LAB.bs.inw = sweep.presses.slice();
+          var other = sweep.dir === "out" ? (LAB.bs.inw ? "" : " Now do Sweep 2.") : (LAB.bs.out ? "" : " Now do Sweep 1.");
+          stopSweep("Got it: " + sweep.presses[0] + "° and " + sweep.presses[1] + "°." + other);
+        }
+      }
+      cw.addEventListener("input", function () { cwVal = +cw.value; drawCard(); draw(null); });
+      el.querySelector("#cminus").addEventListener("click", function () { cwVal = Math.max(120, cwVal - 1); drawCard(); draw(null); });
+      el.querySelector("#cplus").addEventListener("click", function () { cwVal = Math.min(+cw.max, cwVal + 1); drawCard(); draw(null); });
+      distIn.addEventListener("input", function () { LAB.dist = dist(); draw(null); });
+      el.querySelectorAll("[data-d]").forEach(function (b) { b.addEventListener("click", function () { distIn.value = b.getAttribute("data-d"); LAB.dist = dist(); draw(null); }); });
+      el.querySelector("#out").addEventListener("click", function () { startSweep("out"); });
+      el.querySelector("#inw").addEventListener("click", function () { startSweep("in"); });
+      el.querySelector("#hit").addEventListener("click", hit);
+      var onKey = function (e) { if (sweep && (e.code === "Space" || e.key === " ")) { e.preventDefault(); hit(); } };
+      document.addEventListener("keydown", onKey); cleanup.push(function () { document.removeEventListener("keydown", onKey); if (raf) cancelAnimationFrame(raf); });
+      el.querySelector("#example").addEventListener("click", function () {
+        if (sweep) stopSweep(null);
+        LAB.bs = { example: true, inner: 10.8, outer: 16.2 }; mode = "map"; draw(null); showRes();
+        setMsg("Example data loaded: a typical blind spot from 10.8° to 16.2°.");
+      });
+      el.querySelector("#fill").addEventListener("click", function () {
+        if (!bsCalc()) { setMsg("Map your blind spot first (or use the example data), so the test lands in the right place."); return; }
+        if (sweep) stopSweep(null);
+        mode = mode === "fill" ? "map" : "fill"; draw(null);
+        setMsg(mode === "fill" ? "Cover your left eye and look at the cross. Most people see the stripes continue through the disc. Press the button again to hide the test." : "");
+      });
+      drawCard(); draw(null); showRes();
+      onResize(function () { drawCard(); draw(sweep ? sweep.deg : null); });
+      wireFindings(el, P, part);
+      el.querySelector("#next").addEventListener("click", function () { finish(); });
+    }
+
+    /* ---------- Part 2: record a ganglion cell ---------- */
+    function buildCell() {
+      var st = { cell: "A", exp: "size", pol: 1, size: 1, hole: 2.5, edge: 0, map: false, sound: false, busy: false, last: null, phase: "idle" };
+      el.innerHTML = headHTML(P) + '<div class="bench">' +
+        '<div class="card"><h3>What the cat sees · and the recording</h3>' +
+        '<div class="plotwrap"><canvas id="scr" aria-label="Grey screen with the light stimulus"></canvas></div>' +
+        '<div class="plotwrap" style="margin-top:8px"><canvas id="ras" aria-label="Raster of spikes for five flashes"></canvas></div>' +
+        '<div class="readout" id="ro" aria-live="polite">Choose a stimulus and press Record.</div>' +
+        '<div class="plotwrap" style="margin-top:8px"><canvas id="tun" aria-label="Your tuning graph"></canvas></div>' +
+        '<div class="legend" id="leg"></div></div>' +
+        '<div><div class="card"><h3>Controls</h3>' +
+        '<div class="ctrl"><label>Cell</label><div class="seg" role="radiogroup"><label><input type="radio" name="cell" value="A" checked> Cell A</label><label><input type="radio" name="cell" value="B"> Cell B</label></div></div>' +
+        '<div class="ctrl"><label>Experiment</label><div class="seg" role="radiogroup"><label><input type="radio" name="exp" value="size" checked> Spot size</label><label><input type="radio" name="exp" value="ring"> Ring</label><label><input type="radio" name="exp" value="edge"> Edge</label></div></div>' +
+        '<div class="ctrl" id="polrow"><label>Spot or ring is…</label><div class="seg" role="radiogroup"><label><input type="radio" name="pol" value="1" checked> light</label><label><input type="radio" name="pol" value="-1"> dark</label></div></div>' +
+        '<div class="ctrl"><label for="sl"><span id="sllab">Spot diameter</span> <span class="val" id="slv"></span></label><input type="range" id="sl"></div>' +
+        '<div class="row"><button class="btn" id="rec">Record 5 flashes</button><button class="btn2" id="whole">Whole screen</button></div>' +
+        '<label class="toggle" style="margin-top:8px"><input type="checkbox" id="snd"> Clicks for spikes <small>(sound, as physiologists listen to them)</small></label>' +
+        '<label class="toggle"><input type="checkbox" id="map"> Show the cell’s map <small>(after you have guessed)</small></label>' +
+        '<div class="row"><button class="btn2" id="clr">Clear this graph</button></div></div>' +
+        stepsHTML(P) + findingsHTML(P) + doneHTML(P) + '</div></div>' + navHTML(part);
+
+      var sl = el.querySelector("#sl"), ro = el.querySelector("#ro");
+      var SL = { size: { lab: "Spot diameter", min: 0.25, max: 8, step: 0.25, key: "size", unit: "°" },
+                 ring: { lab: "Hole in the ring (diameter)", min: 0.5, max: 6, step: 0.25, key: "hole", unit: "°" },
+                 edge: { lab: "Edge position (− = left of the cell’s centre)", min: -4, max: 4, step: 0.25, key: "edge", unit: "°" } };
+      function setSlider() {
+        var s = SL[st.exp]; sl.min = s.min; sl.max = s.max; sl.step = s.step; sl.value = st[s.key];
+        el.querySelector("#sllab").textContent = s.lab; el.querySelector("#slv").textContent = st[s.key] + s.unit;
+        el.querySelector("#polrow").style.display = st.exp === "edge" ? "none" : "";
+        el.querySelector("#whole").style.display = st.exp === "size" ? "" : "none";
+      }
+      function stimDesc(whole) {
+        var pol = st.pol > 0 ? "light" : "dark";
+        if (st.exp === "size") return whole ? pol + " whole screen" : pol + " spot " + st.size + "°";
+        if (st.exp === "ring") return pol + " ring, hole " + st.hole + "°";
+        return "edge at " + st.edge + "° (light on the right)";
+      }
+      function drawScreen(on, whole) {
+        var g = setupCanvas(el.querySelector("#scr"), 190), c = g.ctx, W = g.w, H = g.h, ppd = W / 14, cx = W / 2, cy = H / 2;
+        var bg = "#808080", L = st.pol > 0 ? "#E8E8E8" : "#1A1A1A";
+        c.fillStyle = bg; c.fillRect(0, 0, W, H);
+        c.globalAlpha = on ? 1 : 0.38;
+        if (st.exp === "size") {
+          if (whole) { c.fillStyle = L; c.fillRect(0, 0, W, H); }
+          else { c.fillStyle = L; c.beginPath(); c.arc(cx, cy, st.size / 2 * ppd, 0, 2 * Math.PI); c.fill(); }
+        } else if (st.exp === "ring") {
+          c.fillStyle = L; c.beginPath(); c.arc(cx, cy, 5 * ppd, 0, 2 * Math.PI); c.fill();
+          c.fillStyle = bg; c.beginPath(); c.arc(cx, cy, st.hole / 2 * ppd, 0, 2 * Math.PI); c.fill();
+        } else {
+          var ex = cx + st.edge * ppd; c.fillStyle = "#1A1A1A"; c.fillRect(0, 0, ex, H); c.fillStyle = "#E8E8E8"; c.fillRect(ex, 0, W - ex, H);
+        }
+        c.globalAlpha = 1;
+        if (st.map) {
+          var sgn = st.cell === "A" ? 1 : -1;
+          c.setLineDash([5, 4]); c.lineWidth = 2; c.strokeStyle = "#F2C14E";
+          c.beginPath(); c.arc(cx, cy, RF.border * ppd, 0, 2 * Math.PI); c.stroke();
+          c.beginPath(); c.arc(cx, cy, 3 * ppd, 0, 2 * Math.PI); c.stroke(); c.setLineDash([]);
+          c.fillStyle = "#F2C14E"; c.font = "bold 18px " + css("--font-num"); c.textAlign = "center"; c.textBaseline = "middle";
+          c.fillText(sgn > 0 ? "+" : "−", cx, cy); c.fillText(sgn > 0 ? "−" : "+", cx + 2.1 * ppd, cy); c.fillText(sgn > 0 ? "−" : "+", cx - 2.1 * ppd, cy);
+        } else {
+          c.strokeStyle = "rgba(255,255,255,0.6)"; c.lineWidth = 1; c.beginPath(); c.moveTo(cx - 6, cy); c.lineTo(cx + 6, cy); c.moveTo(cx, cy - 6); c.lineTo(cx, cy + 6); c.stroke();
+        }
+        c.fillStyle = "#FFF"; c.font = "12px " + css("--font-num"); c.textAlign = "left"; c.textBaseline = "top";
+        c.fillText(on ? "LIGHT ON" : "preview", 8, 6);
+        c.textAlign = "right"; c.fillText("Cell " + st.cell + " · 14° across", W - 8, 6);
+        if (!st.map) { c.textAlign = "center"; c.textBaseline = "bottom"; c.fillText("+ marks the middle of the cell’s field", cx, H - 6); }
+      }
+      function drawRaster(trains, simT) {
+        var g = setupCanvas(el.querySelector("#ras"), 130), c = g.ctx, W = g.w, H = g.h, L = 44, R = 10, T = 8, B = 24, Tt = TR.pre + TR.on + TR.post;
+        var X = function (t) { return L + t / Tt * (W - L - R); }, rowH = (H - T - B) / 5;
+        c.fillStyle = css("--grid"); c.fillRect(X(TR.pre), T, X(TR.pre + TR.on) - X(TR.pre), H - T - B);
+        c.font = "12px " + css("--font-num"); c.fillStyle = css("--muted"); c.textAlign = "center"; c.textBaseline = "top";
+        c.fillText("light on", (X(TR.pre) + X(TR.pre + TR.on)) / 2, H - B + 4);
+        c.textAlign = "left"; c.fillText("0", L, H - B + 4); c.textAlign = "right"; c.fillText("1.8 s", W - R, H - B + 4);
+        for (var i = 0; i < 5; i++) { c.textAlign = "right"; c.textBaseline = "middle"; c.fillText(String(i + 1), L - 8, T + rowH * (i + 0.5)); }
+        if (!trains) return;
+        c.strokeStyle = css("--trace"); c.lineWidth = 1.5;
+        trains.forEach(function (tr, i) {
+          var tShow = Math.min(Tt, simT - i * Tt); if (tShow <= 0) return;
+          tr.forEach(function (t) { if (t <= tShow) { c.beginPath(); c.moveTo(X(t), T + rowH * i + 3); c.lineTo(X(t), T + rowH * (i + 1) - 3); c.stroke(); } });
+        });
+      }
+      var SER = { "AL": ["Cell A · light", "--accent"], "AD": ["Cell A · dark", "--na"], "BL": ["Cell B · light", "--k"], "BD": ["Cell B · dark", "--ok"] };
+      function drawTuning() {
+        var g = setupCanvas(el.querySelector("#tun"), 220), c = g.ctx, W = g.w, H = g.h, L = 44, Rr = 28, T = 30, B = 40;
+        var X0 = { size: 0, ring: 0, edge: -4 }[st.exp], X1 = { size: 9, ring: 6, edge: 4 }[st.exp];
+        var xt = { size: [0, 2, 4, 6, 8, 9], ring: [0, 1, 2, 3, 4, 5, 6], edge: [-4, -2, 0, 2, 4] }[st.exp];
+        var xl = { size: "spot diameter (°)", ring: "hole diameter (°)", edge: "edge position (°)" }[st.exp];
+        var A = axes(c, L, T, W - L - Rr, H - T - B, X0, X1, 100, xt, [0, 25, 50, 75, 100], xl, "spikes/s while the light is on", function (v) { return st.exp === "size" && v === 9 ? "whole" : String(v); });
+        c.setLineDash([4, 4]); c.strokeStyle = css("--muted"); c.beginPath(); c.moveTo(L, A.Y(RF.base)); c.lineTo(W - Rr, A.Y(RF.base)); c.stroke(); c.setLineDash([]);
+        c.fillStyle = css("--muted"); c.textAlign = "right"; c.textBaseline = "bottom"; c.fillText("resting", W - Rr, A.Y(RF.base) - 2);
+        var data = LAB.p2[st.exp], leg = [];
+        Object.keys(SER).forEach(function (k) {
+          var d = data[k]; if (!d) return; var xs = Object.keys(d).map(Number).sort(function (a, b) { return a - b; }); if (!xs.length) return;
+          var col = css(SER[k][1]); leg.push('<span><span class="sw" style="background:' + col + '"></span>' + SER[k][0] + '</span>');
+          c.strokeStyle = col; c.fillStyle = col; c.lineWidth = 2; c.beginPath();
+          xs.forEach(function (x, i) { var m = d[x].reduce(function (s, v) { return s + v; }, 0) / d[x].length; var px = A.X(x), py = A.Y(Math.min(100, m)); if (i) c.lineTo(px, py); else c.moveTo(px, py); });
+          c.stroke();
+          xs.forEach(function (x) { var m = d[x].reduce(function (s, v) { return s + v; }, 0) / d[x].length; c.beginPath(); c.arc(A.X(x), A.Y(Math.min(100, m)), 4, 0, 2 * Math.PI); c.fill(); });
+        });
+        el.querySelector("#leg").innerHTML = leg.length ? leg.join("") : "<span>Each Record adds a point here. The graph is for the experiment chosen on the right.</span>";
+      }
+      var actx = null;
+      function clicks(trains, speed) {
+        if (!st.sound) return;
+        try {
+          actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+          var t0 = actx.currentTime + 0.05, Tt = TR.pre + TR.on + TR.post;
+          trains.forEach(function (tr, i) { tr.forEach(function (t) {
+            var at = t0 + (i * Tt + t) / speed, o = actx.createOscillator(), gn = actx.createGain();
+            o.type = "square"; o.frequency.value = 1800; gn.gain.setValueAtTime(0.08, at); gn.gain.exponentialRampToValueAtTime(0.0001, at + 0.004);
+            o.connect(gn); gn.connect(actx.destination); o.start(at); o.stop(at + 0.006);
+          }); });
+        } catch (e) {}
+      }
+      function record(whole) {
+        if (st.busy) return; st.busy = true;
+        var stim = { exp: st.exp, pol: st.pol, size: st.size, hole: st.hole, edge: st.edge, whole: !!whole };
+        var d = (st.cell === "A" ? 1 : -1) * drive(stim), trains = [], counts = [];
+        for (var i = 0; i < 5; i++) { var tr = spikeTrain(d); trains.push(tr); counts.push(tr.filter(function (t) { return t >= TR.pre && t < TR.pre + TR.on; }).length / TR.on); }
+        var rebound = trains.reduce(function (s, tr) { return s + tr.filter(function (t) { return t >= TR.pre + TR.on && t < TR.pre + TR.on + TR.reb; }).length; }, 0) / 5 / TR.reb;
+        var mean = Math.round(counts.reduce(function (s, v) { return s + v; }, 0) / 5);
+        var key = st.cell + (st.exp === "edge" || st.pol > 0 ? "L" : "D"), x = st.exp === "size" ? (whole ? 9 : st.size) : (st.exp === "ring" ? st.hole : st.edge);
+        var Tt = TR.pre + TR.on + TR.post, speed = 3, total = 5 * Tt / speed * 1000, desc = stimDesc(whole);
+        clicks(trains, speed);
+        el.querySelector("#rec").disabled = true; el.querySelector("#whole").disabled = true;
+        function end() {
+          st.trains = trains; drawScreen(false, whole); drawRaster(trains, 99);
+          var ser = LAB.p2[st.exp][key] = LAB.p2[st.exp][key] || {}; (ser[x] = ser[x] || []).push(mean);
+          var after = rebound > RF.base * 1.6 ? " · burst after light-off: " + Math.round(rebound) + "/s" : "";
+          ro.innerHTML = "Cell " + st.cell + ", " + desc + ": <span class='num'>" + mean + "</span> spikes/s (mean of 5) · resting about " + RF.base + "/s" + after;
+          st.last = { cell: st.cell, desc: desc, mean: mean };
+          drawTuning(); st.busy = false; el.querySelector("#rec").disabled = false; el.querySelector("#whole").disabled = false;
+        }
+        if (reduceMotion || FAST) { end(); return; }
+        var t0 = performance.now();
+        (function f(now) {
+          if (!document.body.contains(el.querySelector("#ras"))) return;
+          var simT = (now - t0) / 1000 * speed, tin = simT % Tt, on = tin >= TR.pre && tin < TR.pre + TR.on && simT < 5 * Tt;
+          drawScreen(on, whole); drawRaster(trains, simT);
+          if (now - t0 < total) requestAnimationFrame(f); else end();
+        })(t0);
+      }
+      el.querySelectorAll("input[name=cell]").forEach(function (r) { r.addEventListener("change", function () { st.cell = r.value; drawScreen(false); }); });
+      el.querySelectorAll("input[name=exp]").forEach(function (r) { r.addEventListener("change", function () { st.exp = r.value; setSlider(); drawScreen(false); drawTuning(); }); });
+      el.querySelectorAll("input[name=pol]").forEach(function (r) { r.addEventListener("change", function () { st.pol = +r.value; drawScreen(false); }); });
+      sl.addEventListener("input", function () { var s = SL[st.exp]; st[s.key] = +sl.value; el.querySelector("#slv").textContent = sl.value + s.unit; drawScreen(false); });
+      el.querySelector("#rec").addEventListener("click", function () { record(false); });
+      el.querySelector("#whole").addEventListener("click", function () { record(true); });
+      el.querySelector("#snd").addEventListener("change", function () { st.sound = this.checked; });
+      el.querySelector("#map").addEventListener("change", function () { st.map = this.checked; drawScreen(false); });
+      el.querySelector("#clr").addEventListener("click", function () { LAB.p2[st.exp] = {}; drawTuning(); });
+      setSlider(); drawScreen(false); drawRaster(null, 0); drawTuning();
+      onResize(function () { if (st.busy) return; drawScreen(false); drawRaster(st.trains || null, 99); drawTuning(); });
+      cleanup.push(function () { try { if (actx) actx.close(); } catch (e) {} });
+      wireFindings(el, P, part);
+      el.querySelector("#next").addEventListener("click", function () { finish(); });
+    }
+
+    /* ---------- Part 3: simultaneous contrast and Mach bands ---------- */
+    function buildContrast() {
+      var TEST = 128;
+      var TRIALS = [ { sl: 50, sr: 50, start: 76, label: "Trial 1 of 4 (a check: both surrounds are the same)" },
+                     { sl: 28, sr: 228, start: 186, label: "Trial 2 of 4" }, { sl: 28, sr: 228, start: 92, label: "Trial 3 of 4" }, { sl: 28, sr: 228, start: 176, label: "Trial 4 of 4" } ];
+      var st = { i: 0, v: TRIALS[0].start, matches: [], prof: false };
+      el.innerHTML = headHTML(P) + '<div class="bench">' +
+        '<div class="card"><h3>Match the greys</h3>' +
+        '<div class="plotwrap"><canvas id="mt" aria-label="Two grey squares on different surrounds"></canvas></div>' +
+        '<div class="readout" id="tl" aria-live="polite"></div>' +
+        '<div class="ctrl"><label for="mv">Right square: darker ← → lighter</label><input type="range" id="mv" min="0" max="255" step="1"></div>' +
+        '<div class="row"><button class="btn2" id="mminus" aria-label="A little darker">− darker</button><button class="btn2" id="mplus" aria-label="A little lighter">+ lighter</button><button class="btn" id="same">They look the same →</button></div>' +
+        '<div id="mres" style="margin-top:10px"></div>' +
+        '<h3 style="margin-top:16px">The staircase</h3>' +
+        '<div class="plotwrap"><canvas id="mach" aria-label="Eight grey bands from dark to light"></canvas></div>' +
+        '<div class="row" style="margin-top:8px"><button class="btn2" id="prof">Show the light profile and the model cells</button></div></div>' +
+        '<div>' + stepsHTML(P) + findingsHTML(P) + doneHTML(P) + '</div></div>' + navHTML(part);
+      var mv = el.querySelector("#mv");
+      function drawMatch() {
+        var g = setupCanvas(el.querySelector("#mt"), 230), c = g.ctx, W = g.w, H = g.h;
+        c.fillStyle = css("--stage"); c.fillRect(0, 0, W, H);
+        if (st.i >= TRIALS.length) { el.querySelector("#tl").textContent = "Done: four matches made."; c.fillStyle = css("--muted"); c.font = "15px " + css("--font-body"); c.textAlign = "center"; c.fillText("All four matches done. Results below.", W / 2, H / 2); return; }
+        var T = TRIALS[st.i], s = Math.min((W - 24) / 2, H - 10), y = (H - s) / 2, xl = W / 2 - s - 6, xr = W / 2 + 6, p = s * 0.36;
+        c.fillStyle = grey(T.sl); c.fillRect(xl, y, s, s); c.fillStyle = grey(TEST); c.fillRect(xl + (s - p) / 2, y + (s - p) / 2, p, p);
+        c.fillStyle = grey(T.sr); c.fillRect(xr, y, s, s); c.fillStyle = grey(st.v); c.fillRect(xr + (s - p) / 2, y + (s - p) / 2, p, p);
+        el.querySelector("#tl").textContent = T.label + " · move the slider until the two small squares look the same";
+      }
+      function showRes() {
+        if (st.matches.length < TRIALS.length) { el.querySelector("#mres").innerHTML = ""; return; }
+        var ctl = st.matches[0] - TEST, ill = Math.round((st.matches[1] + st.matches[2] + st.matches[3]) / 3 - TEST);
+        LAB.match = { control: ctl, illusion: ill };
+        var verdict = ill >= 6 ? "You set the right square lighter than the real grey: the dark surround made the left square look lighter. That is the illusion."
+          : (ill <= -6 ? "Your matches went the other way from most people. Screens and eyes differ; try again in the free lab." : "Your matches were close to the real value. Some people show only a small effect, especially on bright screens.");
+        el.querySelector("#mres").innerHTML = '<table class="rt"><tr><td>Check trial (same surrounds): your match minus the real grey</td><td class="v">' + (ctl > 0 ? "+" : "") + ctl + '</td></tr>' +
+          '<tr><td><b>Your illusion</b> (mean of trials 2–4, out of 255 grey levels)</td><td class="v">' + (ill > 0 ? "+" : "") + ill + '</td></tr></table><p class="fb ' + (ill >= 6 ? "ok" : "hint") + '">' + verdict + '</p>' +
+          '<button class="btn2" id="redo">Do the four matches again</button>';
+        el.querySelector("#redo").addEventListener("click", function () { st.i = 0; st.matches = []; st.v = TRIALS[0].start; mv.value = st.v; drawMatch(); showRes(); el.querySelector("#same").disabled = false; });
+      }
+      function drawMach() {
+        var g = setupCanvas(el.querySelector("#mach"), st.prof ? 270 : 110), c = g.ctx, W = g.w, H = g.h, n = 8, bandH = 100, lum = [];
+        for (var x = 0; x < W; x++) { var k = Math.min(n - 1, Math.floor(x / W * n)); lum.push(40 + k * (190 / (n - 1))); }
+        for (var b = 0; b < n; b++) { c.fillStyle = grey(40 + b * 190 / (n - 1)); c.fillRect(Math.floor(b * W / n), 0, Math.ceil(W / n) + 1, bandH); }
+        if (!st.prof) return;
+        /* the same difference-of-Gaussians as Cell A, scaled so its centre is about a third of a band wide */
+        var sc = Math.max(1.5, W / n / 16), ss = sc * 3, ks = RF.ks, R = Math.ceil(ss * 3.5), ker = [];
+        for (var j = -R; j <= R; j++) ker.push(Math.exp(-j * j / (2 * sc * sc)) / (Math.sqrt(2 * Math.PI) * sc) - ks * Math.exp(-j * j / (2 * ss * ss)) / (Math.sqrt(2 * Math.PI) * ss));
+        var resp = lum.map(function (_, i) { var s = 0; for (var j = -R; j <= R; j++) { var q = Math.min(W - 1, Math.max(0, i + j)); s += lum[q] * ker[j + R]; } return s; });
+        var T0 = bandH + 38, Hh = H - T0 - 8, mm = function (a) { return [Math.min.apply(null, a), Math.max.apply(null, a)]; };
+        var plot = function (arr, col, lw) { var m = mm(arr.slice(R, W - R)); c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); for (var i = R; i < W - R; i++) { var y = T0 + Hh * (1 - (arr[i] - m[0]) / (m[1] - m[0])); if (i === R) c.moveTo(i, y); else c.lineTo(i, y); } c.stroke(); };
+        c.fillStyle = css("--stage"); c.fillRect(0, bandH, W, H - bandH);
+        plot(lum, css("--ghost"), 3); plot(resp, css("--na"), 2);
+        c.font = "12px " + css("--font-num"); c.textAlign = "left"; c.textBaseline = "top";
+        c.fillStyle = css("--muted"); c.fillText("grey: light on the screen (flat steps)", 6, bandH + 4);
+        c.fillStyle = css("--na"); c.fillText("orange: what a row of Cell A’s would signal", 6, bandH + 18);
+      }
+      mv.value = st.v;
+      mv.addEventListener("input", function () { st.v = +mv.value; drawMatch(); });
+      el.querySelector("#mminus").addEventListener("click", function () { st.v = Math.max(0, st.v - 2); mv.value = st.v; drawMatch(); });
+      el.querySelector("#mplus").addEventListener("click", function () { st.v = Math.min(255, st.v + 2); mv.value = st.v; drawMatch(); });
+      el.querySelector("#same").addEventListener("click", function () {
+        if (st.i >= TRIALS.length) return;
+        st.matches.push(st.v); st.i++;
+        if (st.i < TRIALS.length) { st.v = TRIALS[st.i].start; mv.value = st.v; } else { el.querySelector("#same").disabled = true; }
+        drawMatch(); showRes();
+      });
+      el.querySelector("#prof").addEventListener("click", function () { st.prof = !st.prof; this.textContent = st.prof ? "Hide the profiles" : "Show the light profile and the model cells"; drawMach(); });
+      drawMatch(); drawMach();
+      onResize(function () { drawMatch(); drawMach(); });
+      wireFindings(el, P, part);
+      el.querySelector("#next").addEventListener("click", function () { finish(); });
+    }
+
+    /* ---------- Part 4: afterimages ---------- */
+    function buildAfter() {
+      var COLS = [ { id: "red", name: "Red", hex: "#E03A3A", expect: "bluegreen" }, { id: "yellow", name: "Yellow", hex: "#F2D230", expect: "blue" }, { id: "green", name: "Green", hex: "#2FA84F", expect: "pink" } ];
+      var SW = [ { id: "bluegreen", name: "Blue-green", hex: "#4CC3BA" }, { id: "pink", name: "Pink-purple", hex: "#D873C4" }, { id: "blue", name: "Blue", hex: "#6F8BEA" },
+                 { id: "red", name: "Red", hex: "#E46A6A" }, { id: "yellow", name: "Yellow", hex: "#EFD86A" }, { id: "green", name: "Green", hex: "#6CC283" }, { id: "none", name: "No colour / not sure", hex: null } ];
+      var NAME = {}; SW.forEach(function (s) { NAME[s.id] = s.name; });
+      var st = { k: 0, phase: "ready", left: 20, timer: null };
+      el.innerHTML = headHTML(P) + '<div class="bench">' +
+        '<div class="card"><h3>Stare, then look at grey</h3>' +
+        '<div class="stagewrap" style="background:#8A8A8A"><canvas id="af" aria-label="A coloured disc with a black dot in the middle"></canvas></div>' +
+        '<div class="readout" id="ar" aria-live="polite"></div>' +
+        '<div class="row" id="actrow"><button class="btn" id="go">Start: colour 1 of 3</button><button class="btn2" id="skip">Skip the staring: show what people usually see</button></div>' +
+        '<div id="pick" style="display:none;margin-top:8px"><p><b>Keep looking at the dot.</b> What colour do you see where the disc was?</p><div class="swatches">' +
+        SW.map(function (s) { return '<button class="swatch' + (s.hex ? "" : " none") + '" data-sw="' + s.id + '"' + (s.hex ? ' style="background:' + s.hex + '"' : "") + '>' + s.name + '</button>'; }).join("") + '</div></div>' +
+        '<div id="atab" style="margin-top:10px"></div>' +
+        '<p class="tiny">Nothing flashes. If staring is uncomfortable, use the skip button. People with colour-vision differences may see different afterimages, and that is fine.</p></div>' +
+        '<div>' + stepsHTML(P) + findingsHTML(P) + doneHTML(P) + '</div></div>' + navHTML(part);
+      function draw(withDisc) {
+        var g = setupCanvas(el.querySelector("#af"), 260), c = g.ctx, W = g.w, H = g.h, r = Math.min(W, H) * 0.32;
+        c.fillStyle = "#8A8A8A"; c.fillRect(0, 0, W, H);
+        if (withDisc && st.k < COLS.length) { c.fillStyle = COLS[st.k].hex; c.beginPath(); c.arc(W / 2, H / 2, r, 0, 2 * Math.PI); c.fill(); }
+        c.fillStyle = "#000"; c.beginPath(); c.arc(W / 2, H / 2, 4, 0, 2 * Math.PI); c.fill();
+        if (withDisc && st.phase === "stare") {   // a slowly shrinking bar, not a flashing counter
+          var frac = st.left / 20; c.fillStyle = "rgba(0,0,0,0.35)"; c.fillRect(W * 0.2, H - 14, W * 0.6 * frac, 5);
+        }
+      }
+      function table() {
+        var rows = COLS.map(function (C) {
+          var a = LAB.after[C.id];
+          return '<tr><td>' + C.name + ' disc</td><td class="v">' + (a ? NAME[a] + (a === "skipped" ? "" : "") : "–") + '</td><td class="v">' + NAME[C.expect] + '</td></tr>';
+        }).join("");
+        el.querySelector("#atab").innerHTML = '<table class="rt"><tr><th>Stared at</th><th style="text-align:right">You saw</th><th style="text-align:right">Many people see</th></tr>' + rows + '</table>';
+      }
+      NAME.skipped = "skipped";
+      function setBtn() {
+        var go = el.querySelector("#go");
+        if (st.k >= COLS.length) { go.disabled = true; go.textContent = "All three done"; el.querySelector("#skip").style.display = "none"; return; }
+        go.disabled = false; go.textContent = "Start: colour " + (st.k + 1) + " of 3";
+      }
+      function stopTimer() { if (st.timer) clearInterval(st.timer); st.timer = null; }
+      el.querySelector("#go").addEventListener("click", function () {
+        if (st.phase === "stare") return;
+        st.phase = "stare"; st.left = 20; el.querySelector("#pick").style.display = "none"; this.disabled = true;
+        draw(true); el.querySelector("#ar").textContent = "Look at the black dot. Keep your eyes still: " + st.left + " s";
+        var tick = FAST ? 20 : 1000;
+        st.timer = setInterval(function () {
+          st.left--; draw(true);
+          if (st.left > 0) { el.querySelector("#ar").textContent = "Look at the black dot. Keep your eyes still: " + st.left + " s"; return; }
+          stopTimer(); st.phase = "pick"; draw(false);
+          el.querySelector("#ar").textContent = "Now: keep looking at the dot.";
+          el.querySelector("#pick").style.display = "";
+        }, tick);
+      });
+      el.querySelectorAll("[data-sw]").forEach(function (b) {
+        b.addEventListener("click", function () {
+          if (st.phase !== "pick") return;
+          var C = COLS[st.k], id = b.getAttribute("data-sw"); LAB.after[C.id] = id;
+          el.querySelector("#ar").textContent = (id === C.expect ? "Most people see that too. " : "Many people see " + NAME[C.expect].toLowerCase() + " after " + C.name.toLowerCase() + ", but afterimages vary. ") + "Blink and look away for a moment.";
+          el.querySelector("#pick").style.display = "none"; st.phase = "ready"; st.k++; setBtn(); draw(false); table();
+        });
+      });
+      el.querySelector("#skip").addEventListener("click", function () {
+        stopTimer(); COLS.forEach(function (C) { if (!LAB.after[C.id]) LAB.after[C.id] = "skipped"; });
+        st.k = COLS.length; st.phase = "ready"; el.querySelector("#pick").style.display = "none"; setBtn(); draw(false); table();
+        el.querySelector("#ar").textContent = "The table shows what many people see. Notice the pairs: red with blue-green, yellow with blue.";
+      });
+      cleanup.push(stopTimer);
+      draw(false); setBtn(); table();
+      onResize(function () { draw(st.phase === "stare"); });
+      wireFindings(el, P, part);
+      el.querySelector("#next").addEventListener("click", function () { finish(); });
+    }
+
+    /* ---------- Free lab: choose a part ---------- */
+    function buildFree() {
+      el.innerHTML = '<div class="read"><span class="eyebrow">Free lab</span><h2>Go back to any part</h2><p>Make a prediction first, then test it. Ideas: does Cell B prefer the same spot size as Cell A, with a dark spot? Does a ring do the opposite to Cell B? Does your blind spot measure the same a second time?</p>' +
+        '<div class="row"><button class="btn2" data-go="1">Part 1: blind spot</button><button class="btn2" data-go="2">Part 2: ganglion cell</button><button class="btn2" data-go="3">Part 3: same grey?</button><button class="btn2" data-go="4">Part 4: afterimages</button></div>' +
+        '<div class="row"><button class="btn" id="next">Back to results</button></div></div>';
+      el.querySelectorAll("[data-go]").forEach(function (b) { b.addEventListener("click", function () { finish({ part: "free", go: b.getAttribute("data-go") }); }); });
+      el.querySelector("#next").addEventListener("click", function () { finish({ part: "free", go: "results" }); });
+    }
+  };
+
+  /* ---------------- password gates ----------------
+     Each part opens only with the password shown on its SEEING LAB slide, so the
+     class moves together. To change them, edit the four words below and the
+     matching \pwone ... \pwfour in the deck. Letter case and spaces are ignored.
+     This paces the class; it is not security (the words are in the page). */
+  var PASSWORDS = { "1": "lantern", "2": "pebble", "3": "harbour", "4": "violet" };
+  var GATE_INFO = {
+    "1": { title: "Find your blind spot", slide: "Seeing Lab, Part 1: the hole in your eye" },
+    "2": { title: "Record from a retinal ganglion cell", slide: "Seeing Lab, Part 2: Kuffler’s cat" },
+    "3": { title: "Your own lateral inhibition", slide: "Seeing Lab, Part 3: same grey?" },
+    "4": { title: "Afterimages and opposite colours", slide: "Seeing Lab, Part 4: tire out your cones" }
+  };
+  var UNLOCK_KEY = "seeinglab-unlocked";
+  function loadUnlocked() { try { return JSON.parse(sessionStorage.getItem(UNLOCK_KEY)) || {}; } catch (e) { return {}; } }
+  var unlocked = loadUnlocked();
+  function saveUnlocked() { try { sessionStorage.setItem(UNLOCK_KEY, JSON.stringify(unlocked)); } catch (e) {} }
+  function norm(w) { return String(w || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
+  function PwGate(jsPsych) { this.jsPsych = jsPsych; }
+  PwGate.info = { name: "pw-gate", parameters: { part: { type: PT.STRING, default: "1" } } };
+  PwGate.prototype.trial = function (el, trial) {
+    var self = this, p = trial.part, G = GATE_INFO[p];
+    try { window.scrollTo(0, 0); } catch (e) {}
+    el.innerHTML = '<div class="read gate"><span class="eyebrow">Part ' + p + ' of 4 · locked</span>' +
+      '<h2>' + G.title + '</h2>' +
+      '<div class="calm">Wait for the slide <b>' + G.slide + '</b>. It shows the password for this part. While you wait, look at the slides, not ahead.</div>' +
+      '<form class="pwrow" id="pwform" autocomplete="off"><label for="pw">Password from the slide</label>' +
+      '<div class="inrow"><input id="pw" type="text" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" aria-describedby="pwfb">' +
+      '<button class="btn" type="submit">Unlock</button></div>' +
+      '<div class="fb" id="pwfb" aria-live="polite"></div></form></div>';
+    var inp = el.querySelector("#pw"), fb = el.querySelector("#pwfb"), tries = 0;
+    try { inp.focus({ preventScroll: true }); } catch (e) {}
+    el.querySelector("#pwform").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var w = norm(inp.value);
+      if (!w) { fb.className = "fb hint"; fb.textContent = "Type the word shown on the slide."; return; }
+      if (w === norm(PASSWORDS[p])) { unlocked[p] = true; saveUnlocked(); self.jsPsych.finishTrial({ gate: p, ok: true }); }
+      else {
+        tries++; fb.className = "fb hint";
+        fb.textContent = tries < 3 ? "Not that one. Check the spelling on the slide." : "Still not it. Ask a neighbour or your teacher for the word on the slide.";
+        inp.select();
+      }
+    });
+  };
+  function gated(p) { return { timeline: [{ type: PwGate, part: p }], conditional_function: function () { return !unlocked[p]; } }; }
+
+  /* ---------------- pages ---------------- */
+  var jsPsych = initJsPsych({ display_element: target });
+  var welcome = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus:
+      '<div class="read"><span class="eyebrow">Sessions 13–14 · sensory systems and vision</span>' +
+      '<h2>Seeing Lab: from light to perception</h2>' +
+      '<p>Your eye does not send the brain a photograph. It sends a heavily edited summary. This lab lets you catch the editing in your own vision, and in a model cell. Use it beside the slides: each part matches a slide.</p>' +
+      '<ol class="partlist"><li><b>The hole in your eye</b>: map your own blind spot, then watch your brain fill it in.</li>' +
+      '<li><b>Kuffler’s cat</b>: record from a retinal ganglion cell and find what it likes.</li>' +
+      '<li><b>Same grey?</b>: measure your own lateral inhibition.</li>' +
+      '<li><b>Tire out your cones</b>: afterimages and opposite colours.</li></ol>' +
+      '<div class="calm"><b>You need:</b> a bank card, ID card or ruler for Part 1. Each part takes about 6 to 8 minutes. Work alone or with a partner. <b>Nothing you do is saved or sent anywhere.</b></div>' +
+      '<div class="calm">Parts 1 and 4 ask you to look steadily at one point. Nothing flashes. If that is uncomfortable, each part has an example or skip button.</div>' +
+      '<div class="calm"><b>Each part is locked.</b> Its password appears on the matching slide, so we all move together. No rush: wait for the slide.</div></div>',
+    choices: ["Continue"]
+  };
+  function partTrial(p) { return { type: SeeingLab, part: p }; }
+  function resultsHTML() {
+    var b = bsCalc(), F = LAB.fields, A = LAB.answers, M = LAB.match, AF = LAB.after;
+    var nm = { bluegreen: "blue-green", pink: "pink-purple", blue: "blue", red: "red", yellow: "yellow", green: "green", none: "no colour", skipped: "skipped" };
+    var f = function (k, u) { return F[k] == null ? "–" : F[k] + (u ? " " + u : ""); };
+    var rows = [
+      ["Blind spot (Part 1)" + (b && b.example ? ", example data" : ""), b ? b.inner + "° to " + b.outer + "°" : "–"],
+      ["Centre · width", b ? b.centre + "° · " + b.width + "°" : "–"],
+      ["Best spot for Cell A (Part 2)", f("2.best", "°")],
+      ["Cell A: best spot · whole screen", (F["2.bestr"] == null ? "–" : F["2.bestr"]) + " · " + (F["2.whole"] == null ? "–" : F["2.whole"]) + " spikes/s"],
+      ["Cell B is", A["2.cellb"] ? "OFF-centre" : "–"],
+      ["Your grey illusion (Part 3)", M ? (M.illusion > 0 ? "+" : "") + M.illusion + " of 255" : "–"],
+      ["Afterimages (Part 4): red · yellow · green", ["red", "yellow", "green"].map(function (k) { return AF[k] ? nm[AF[k]] : "–"; }).join(" · ")]
+    ];
+    var line = "blind spot " + (b ? b.centre + "°/" + b.width + "°" : "-") + " | best spot " + (F["2.best"] ?? "-") + "° | best/whole " + (F["2.bestr"] ?? "-") + "/" + (F["2.whole"] ?? "-") + " sp/s | illusion " + (M ? M.illusion : "-") +
+      " | after " + ["red", "yellow", "green"].map(function (k) { return AF[k] ? nm[AF[k]] : "-"; }).join("/");
+    return '<div class="read"><span class="eyebrow">Your results</span><h2>What you found</h2>' +
+      '<p>Only the numbers you measured or checked appear here.</p><table class="sum">' + rows.map(function (r) { return '<tr><td>' + r[0] + '</td><td class="v">' + r[1] + '</td></tr>'; }).join("") + '</table>' +
+      '<p><b>One line for your booklet or notes:</b></p><div class="copyline" id="copyline">' + line + '</div>' +
+      '<div class="row"><button class="btn2" id="copybtn">Copy line</button><button class="btn2" id="freebtn">Open the free lab</button><button class="btn2" id="againbtn">Start again</button></div>' +
+      '<div class="calm"><b>The big picture.</b> Every sense turns energy into spikes, and edits on the way. Your retina has a hole the brain hides, cells that report contrast rather than light, neighbours that inhibit each other, and colour signals that work in opposing pairs and adapt. What you see is the brain’s best guess about the world, not a copy of it.</div></div>';
+  }
+  var results = {
+    type: jsPsychHtmlButtonResponse, stimulus: function () { return resultsHTML(); }, choices: [],
+    on_load: function () {
+      try { window.scrollTo(0, 0); } catch (e) {}
+      var cl = document.getElementById("copyline");
+      document.getElementById("copybtn").addEventListener("click", function () {
+        var txt = cl.textContent, b = this, ok = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy line"; }, 1500); };
+        function sel() { var r = document.createRange(); r.selectNodeContents(cl); var s = window.getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Selected: press Ctrl/Cmd+C"; }
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, sel); else sel();
+      });
+      document.getElementById("freebtn").addEventListener("click", function () { jsPsych.finishTrial({ next: "free" }); });
+      document.getElementById("againbtn").addEventListener("click", function () { jsPsych.finishTrial({ next: "again" }); });
+    }
+  };
+  function lastData() { var d = jsPsych.data.get().values(); return d[d.length - 1] || {}; }
+  var revisit = {
+    timeline: [partTrial("free"), {
+      timeline: [{ type: SeeingLab, part: function () { return lastData().go; } }],
+      conditional_function: function () { var g = lastData().go; return g === "1" || g === "2" || g === "3" || g === "4"; }
+    }],
+    loop_function: function () { return lastData().go !== "results"; }
+  };
+  var resultsLoop = {
+    timeline: [results, { timeline: [revisit], conditional_function: function () { return lastData().next === "free"; } }],
+    loop_function: function () { return lastData().go === "results"; }
+  };
+  var main = {
+    timeline: [gated("1"), partTrial("1"), gated("2"), partTrial("2"), gated("3"), partTrial("3"), gated("4"), partTrial("4"), resultsLoop],
+    loop_function: function () { var again = lastData().next === "again"; if (again) resetLab(); return again; }
+  };
+  jsPsych.run([welcome, main]);
+})();
+</script>
+</body></html>
